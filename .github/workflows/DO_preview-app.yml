@@ -1,0 +1,100 @@
+name: Kubernetes Preview App
+
+on:
+  workflow_call:
+    inputs:
+      project:
+        required: true
+        type: string
+      docker_registry:
+        required: true
+        type: string
+      kubernetes_cluster:
+        required: true
+      domain:
+        required: true
+        type: string
+      runs_on:
+        required: false
+        default: ubuntu-latest
+      timeouts:
+        required: false
+        default: 10
+      dockerfile_path:
+        required: false
+        default: Dockerfile
+      helm_values_path:
+        required: false
+        default: values-stage.yml
+      helm_chart_version:
+        required: false
+        default: 1.0.0
+    secrets:
+      github_token:
+        required: true
+      digitalocean_token:
+        required: true
+
+concurrency:
+  group: preview-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PROJECT: ${{ inputs.project }}
+  IMAGE_WITH_TAG: ${{ inputs.project }}:${{ github.event.number }}
+  DOCKER_REGISTRY: ${{ inputs.docker_registry }}
+
+jobs:
+  build:
+    timeout-minutes: ${{ inputs.timeouts }}
+    runs-on: ${{ inputs.runs_on }}
+    name: Preview App – Build
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install doctl
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.digitalocean_token }}
+
+      - name: Login to Docker Registry
+        run: doctl registry login -t ${{ secrets.digitalocean_token }} --expiry-seconds 1200
+
+      - name: Build
+        run: DOCKER_BUILDKIT=1 docker build . --file ${{ inputs.dockerfile_path }} --tag $DOCKER_REGISTRY/$IMAGE_WITH_TAG
+
+      - name: Push
+        run: docker push $DOCKER_REGISTRY/$IMAGE_WITH_TAG
+
+  deploy:
+    runs-on: ${{ inputs.runs_on }}
+    name: Preview App – Deploy
+    needs: build
+    timeout-minutes: ${{ inputs.timeouts }}
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up kubectl
+        uses: matootie/dokube@v1.4.0
+        with:
+          personalAccessToken: ${{ secrets.digitalocean_token }}
+          clusterName: ${{ inputs.kubernetes_cluster }}
+          namespace: ${{ env.PROJECT }}
+
+      - uses: azure/setup-helm@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.github_token }}
+
+      - name: Install Helm Charts
+        run: helm repo add enlabs https://enlabs-org.github.io/charts/
+
+      - name: Update Helm release
+        run: |
+          helm upgrade ${{ env.PROJECT }}-${{ github.event.number }} -i \
+          enlabs/preview-app \
+          -f ${{ inputs.helm_values_path }} \
+          --set image=${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_WITH_TAG }} \
+          --set host=${{ env.PROJECT }}-${{ github.event.number }}.${{ inputs.domain }} \
+          -n ${{ env.PROJECT }} \
+          --create-namespace \
+          --version ${{ inputs.helm_chart_version }}
