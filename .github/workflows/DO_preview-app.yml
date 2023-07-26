@@ -11,24 +11,30 @@ on:
         type: string
       kubernetes_cluster:
         required: true
+        type: string
       domain:
         required: true
         type: string
       runs_on:
         required: false
+        type: string
         default: ubuntu-latest
       timeouts:
         required: false
         default: 10
+        type: number
       dockerfile_path:
         required: false
         default: Dockerfile
+        type: string
       helm_values_path:
         required: false
         default: values-stage.yml
+        type: string
       helm_chart_version:
         required: false
         default: 1.0.0
+        type: string
     secrets:
       token:
         required: true
