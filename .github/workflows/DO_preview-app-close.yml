@@ -1,0 +1,59 @@
+name: Kubernetes Preview App
+
+on:
+  workflow_call:
+    inputs:
+      project:
+        required: true
+        type: string
+      docker_registry:
+        required: true
+        type: string
+      kubernetes_cluster:
+        required: true
+        type: string
+      runs_on:
+        required: false
+        type: string
+        default: ubuntu-latest
+    secrets:
+      token:
+        required: true
+      digitalocean_token:
+        required: true
+
+env:
+  PROJECT: ${{ inputs.project }}
+
+concurrency:
+  group: preview-${{ github.event.number }}
+  cancel-in-progress: true
+
+jobs:
+  close:
+    timeout-minutes: 5
+    runs-on: ${{ inputs.runs_on }}
+    name: Preview App - Destroy
+    steps:
+      - name: Install doctl
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.digitalocean_token }}
+
+      - name: Set up kubectl
+        uses: matootie/dokube@v1.4.0
+        with:
+          personalAccessToken: ${{ secrets.digitalocean_token }}
+          clusterName: ${{ inputs.kubernetes_cluster }}
+          namespace: ${{ env.PROJECT }}
+
+      - uses: azure/setup-helm@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Delete release
+        run: helm uninstall ${{ env.PROJECT }}-${{ github.event.number }} -n ${{ env.PROJECT }}
+
+      - name: Delete Docker image
+        run: |
+          doctl registry repository delete-tag -f ${{ env.PROJECT }} ${{ github.event.number }}
