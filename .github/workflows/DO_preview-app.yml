@@ -45,10 +45,6 @@ on:
       digitalocean_token:
         required: true
 
-concurrency:
-  group: preview-${{ github.ref }}
-  cancel-in-progress: true
-
 env:
   PROJECT: ${{ inputs.project }}
   IMAGE_WITH_TAG: ${{ inputs.project }}:${{ github.event.number }}
