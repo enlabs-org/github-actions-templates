@@ -12,9 +12,13 @@ on:
       kubernetes_cluster:
         required: true
         type: string
-      domain:
+      base_domain:
         required: true
         type: string
+      context:
+        required: false
+        type: string
+        default: .
       runs_on:
         required: false
         type: string
@@ -67,7 +71,7 @@ jobs:
         run: doctl registry login -t ${{ secrets.digitalocean_token }} --expiry-seconds 1200
 
       - name: Build
-        run: DOCKER_BUILDKIT=1 docker build . --file ${{ inputs.dockerfile_path }} --tag $DOCKER_REGISTRY/$IMAGE_WITH_TAG
+        run: DOCKER_BUILDKIT=1 docker build ${{ inputs.context }} --file ${{ inputs.dockerfile_path }} --tag $DOCKER_REGISTRY/$IMAGE_WITH_TAG
 
       - name: Push
         run: docker push $DOCKER_REGISTRY/$IMAGE_WITH_TAG
@@ -100,7 +104,7 @@ jobs:
           enlabs/preview-app \
           -f ${{ inputs.helm_values_path }} \
           --set image=${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_WITH_TAG }} \
-          --set host=${{ env.PROJECT }}-${{ github.event.number }}.${{ inputs.domain }} \
+          --set host=${{ env.PROJECT }}-${{ github.event.number }}.${{ inputs.base_domain }} \
           -n ${{ env.PROJECT }} \
           --create-namespace \
           --version ${{ inputs.helm_chart_version }}
