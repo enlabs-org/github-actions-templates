@@ -30,7 +30,7 @@ on:
         required: false
         default: 1.0.0
     secrets:
-      github_token:
+      token:
         required: true
       digitalocean_token:
         required: true
@@ -83,7 +83,7 @@ jobs:
 
       - uses: azure/setup-helm@v3
         env:
-          GITHUB_TOKEN: ${{ secrets.github_token }}
+          GITHUB_TOKEN: ${{ secrets.token }}
 
       - name: Install Helm Charts
         run: helm repo add enlabs https://enlabs-org.github.io/charts/
