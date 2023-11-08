@@ -53,3 +53,11 @@ jobs:
       - name: Delete Docker image
         run: |
           doctl registry repository delete-tag -f ${{ env.PROJECT }} ${{ github.event.number }}
+
+      - uses: strumwolf/delete-deployment-environment@v2
+        continue-on-error: true
+        name: Remove GitHub deployments
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          environment: "${{ env.PROJECT }}-${{ github.event.number }}"
+          onlyRemoveDeployments: true
