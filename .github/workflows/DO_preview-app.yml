@@ -42,7 +42,7 @@ on:
       deployment:
         required: false
         type: string
-        default: "true"
+        default: "false"
     secrets:
       token:
         required: true
@@ -111,7 +111,7 @@ jobs:
 
   deployment:
     if: inputs.deployment == 'true'
-    name: PR Deployments
+    name: Preview App - Github Deployment
     runs-on: ${{ inputs.runs_on }}
     timeout-minutes: 2
     needs: deploy

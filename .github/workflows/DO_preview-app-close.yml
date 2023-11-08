@@ -56,7 +56,7 @@ jobs:
 
       - uses: strumwolf/delete-deployment-environment@v2
         continue-on-error: true
-        name: Remove GitHub deployments
+        name: Delete GitHub deployment
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           environment: "${{ env.PROJECT }}-${{ github.event.number }}"
