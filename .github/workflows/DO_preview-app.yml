@@ -39,6 +39,10 @@ on:
         required: false
         default: 1.0.0
         type: string
+      deployment:
+        required: false
+        type: string
+        default: "true"
     secrets:
       token:
         required: true
@@ -104,3 +108,21 @@ jobs:
           -n ${{ env.PROJECT }} \
           --create-namespace \
           --version ${{ inputs.helm_chart_version }}
+
+  deployment:
+    if: inputs.deployment == 'true'
+    name: PR Deployments
+    runs-on: ${{ inputs.runs_on }}
+    timeout-minutes: 2
+    needs: deploy
+    steps:
+      - uses: chrnorm/deployment-action@releases/v2
+        name: Create GitHub deployment
+        if: github.event.action == 'opened' || github.event.action == 'reopened' || github.event.action == 'synchronize'
+        id: deployment
+        with:
+          token: ${{ secrets.token }}
+          environment-url: "https://${{ env.PROJECT }}-${{ github.event.number }}.${{ inputs.base_domain }}"
+          environment: "${{ env.PROJECT }}-${{ github.event.number }}"
+          initial-status: "success"
+          ref: "${{ github.event.pull_request.head.ref }}"
