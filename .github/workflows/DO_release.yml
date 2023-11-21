@@ -1,0 +1,65 @@
+name: Kubernetes Release App
+
+on:
+  workflow_call:
+    inputs:
+      project:
+        required: true
+        type: string
+      docker_registry:
+        required: true
+        type: string
+      context:
+        required: false
+        type: string
+        default: .
+      runs_on:
+        required: false
+        type: string
+        default: ubuntu-latest
+      timeouts:
+        required: false
+        default: 10
+        type: number
+      dockerfile_path:
+        required: false
+        default: Dockerfile
+        type: string
+    secrets:
+      token:
+        required: true
+      digitalocean_token:
+        required: true
+
+env:
+  PROJECT: ${{ inputs.project }}
+  DOCKER_REGISTRY: ${{ inputs.docker_registry }}
+
+jobs:
+  build:
+    timeout-minutes: ${{ inputs.timeouts }}
+    runs-on: ${{ inputs.runs_on }}
+    name: Release App – Build
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Get latest release
+        id: last_release
+        uses: oprypin/find-latest-tag@v1
+        with:
+          repository: ${{ github.repository }}
+          releases-only: true
+
+      - name: Install doctl
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.digitalocean_token }}
+
+      - name: Login to Docker Registry
+        run: doctl registry login -t ${{ secrets.digitalocean_token }} --expiry-seconds 1200
+
+      - name: Build
+        run: DOCKER_BUILDKIT=1 docker build ${{ inputs.context }} --file ${{ inputs.dockerfile_path }} --tag $DOCKER_REGISTRY/${{ env.PROJECT }}:${{ steps.last_release.outputs.tag }}
+
+      - name: Push
+        run: docker push $DOCKER_REGISTRY/${{ env.PROJECT }}:${{ steps.last_release.outputs.tag }}
