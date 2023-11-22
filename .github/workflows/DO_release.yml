@@ -9,6 +9,16 @@ on:
       docker_registry:
         required: true
         type: string
+      infra_path:
+        required: true
+        type: string
+      infra_repository:
+        required: true
+        type: string
+      infra_branch:
+        required: false
+        default: main
+        type: string
       context:
         required: false
         type: string
@@ -25,10 +35,13 @@ on:
         required: false
         default: Dockerfile
         type: string
+
     secrets:
       token:
         required: true
       digitalocean_token:
+        required: true
+      commit_token:
         required: true
 
 env:
@@ -63,3 +76,43 @@ jobs:
 
       - name: Push
         run: docker push $DOCKER_REGISTRY/${{ env.PROJECT }}:${{ steps.last_release.outputs.tag }}
+
+  release:
+    needs: build
+    timeout-minutes: ${{ inputs.timeouts }}
+    runs-on: ${{ inputs.runs_on }}
+    name: Release App – Commit Release
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.infra_repository }}
+          ref: '${{ inputs.infra_branch }}'
+          token:  ${{ secrets.commit_token }}
+
+      - name: Get latest release
+        id: last_release
+        uses: oprypin/find-latest-tag@v1
+        with:
+          repository: ${{ github.repository }}
+          releases-only: true
+
+      - name: Install slu
+        run: curl -fsSL https://raw.githubusercontent.com/sikalabs/slu/master/install.sh | sudo sh
+
+      - name: Set image via slu
+        run: slu argocd set-image -f ${{ inputs.infra_path}}/${{ env.PROJECT }}.yml
+          -k image
+          -v $DOCKER_REGISTRY/${{ env.PROJECT }}:${{ steps.last_release.outputs.tag }}
+
+      - name: Check changes
+        run: cat ${{ inputs.infra_path}}/${{ env.PROJECT }}.yml
+
+      - name: Commit changes
+        run: |
+          git config --global user.name "GitHub Release Bot"
+          git config --global user.email "<>"
+
+          git add ${{ inputs.infra_path}}/${{ env.PROJECT }}.yml
+          git commit -m "release (${{ env.PROJECT }}): ${{ steps.last_release.outputs.tag }}"
+
+          git push origin ${{ inputs.infra_branch }}
