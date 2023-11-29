@@ -9,6 +9,9 @@ on:
       docker_registry:
         required: true
         type: string
+      docker_build_options:
+        required: false
+        type: string
       infra_path:
         required: true
         type: string
@@ -72,7 +75,7 @@ jobs:
         run: doctl registry login -t ${{ secrets.digitalocean_token }} --expiry-seconds 1200
 
       - name: Build
-        run: DOCKER_BUILDKIT=1 docker build ${{ inputs.context }} --file ${{ inputs.dockerfile_path }} --tag $DOCKER_REGISTRY/${{ env.PROJECT }}:${{ steps.last_release.outputs.tag }}
+        run: DOCKER_BUILDKIT=1 docker build ${{ inputs.context }} --file ${{ inputs.dockerfile_path }} --tag $DOCKER_REGISTRY/${{ env.PROJECT }}:${{ steps.last_release.outputs.tag }} ${{ inputs.docker_build_options }}
 
       - name: Push
         run: docker push $DOCKER_REGISTRY/${{ env.PROJECT }}:${{ steps.last_release.outputs.tag }}
