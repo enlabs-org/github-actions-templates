@@ -48,9 +48,11 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Delete release
+        continue-on-error: true
         run: helm uninstall ${{ env.PROJECT }}-${{ github.event.number }} -n ${{ env.PROJECT }}
 
       - name: Delete Docker image
+        continue-on-error: true
         run: |
           doctl registry repository delete-tag -f ${{ env.PROJECT }} ${{ github.event.number }}
 
