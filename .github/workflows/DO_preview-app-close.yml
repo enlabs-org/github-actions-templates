@@ -21,6 +21,8 @@ on:
         required: true
       digitalocean_token:
         required: true
+      deployment_token:
+        required: false
 
 env:
   PROJECT: ${{ inputs.project }}
@@ -60,6 +62,6 @@ jobs:
         continue-on-error: true
         name: Delete GitHub deployment
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.deployment_token }}
           environment: "${{ env.PROJECT }}-${{ github.event.number }}"
           onlyRemoveDeployments: true

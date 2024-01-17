@@ -51,6 +51,8 @@ on:
         required: true
       digitalocean_token:
         required: true
+      deployment_token:
+        required: false
 
 env:
   PROJECT: ${{ inputs.project }}
@@ -124,7 +126,7 @@ jobs:
         if: github.event.action == 'opened' || github.event.action == 'reopened' || github.event.action == 'synchronize'
         id: deployment
         with:
-          token: ${{ secrets.token }}
+          token: ${{ secrets.deployment_token }}
           environment-url: "https://${{ env.PROJECT }}-${{ github.event.number }}.${{ inputs.base_domain }}"
           environment: "${{ env.PROJECT }}-${{ github.event.number }}"
           initial-status: "success"
