@@ -9,9 +9,6 @@ on:
       docker_registry:
         required: true
         type: string
-      docker_build_options:
-        required: false
-        type: string
       infra_path:
         required: true
         type: string
@@ -46,6 +43,8 @@ on:
         required: true
       commit_token:
         required: true
+      docker_build_options:
+        required: false
 
 env:
   PROJECT: ${{ inputs.project }}
@@ -75,7 +74,7 @@ jobs:
         run: doctl registry login -t ${{ secrets.digitalocean_token }} --expiry-seconds 1200
 
       - name: Build
-        run: DOCKER_BUILDKIT=1 docker build ${{ inputs.context }} --file ${{ inputs.dockerfile_path }} --tag $DOCKER_REGISTRY/${{ env.PROJECT }}:${{ steps.last_release.outputs.tag }} ${{ inputs.docker_build_options }}
+        run: DOCKER_BUILDKIT=1 docker build ${{ inputs.context }} --file ${{ inputs.dockerfile_path }} --tag $DOCKER_REGISTRY/${{ env.PROJECT }}:${{ steps.last_release.outputs.tag }} ${{ secrets.docker_build_options }}
 
       - name: Push
         run: docker push $DOCKER_REGISTRY/${{ env.PROJECT }}:${{ steps.last_release.outputs.tag }}
@@ -89,8 +88,8 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: ${{ inputs.infra_repository }}
-          ref: '${{ inputs.infra_branch }}'
-          token:  ${{ secrets.commit_token }}
+          ref: "${{ inputs.infra_branch }}"
+          token: ${{ secrets.commit_token }}
 
       - name: Get latest release
         id: last_release
@@ -103,7 +102,8 @@ jobs:
         run: curl -fsSL https://raw.githubusercontent.com/sikalabs/slu/master/install.sh | sudo sh
 
       - name: Set image via slu
-        run: slu argocd set-image -f ${{ inputs.infra_path}}/${{ env.PROJECT }}.yml
+        run:
+          slu argocd set-image -f ${{ inputs.infra_path}}/${{ env.PROJECT }}.yml
           -k image
           -v $DOCKER_REGISTRY/${{ env.PROJECT }}:${{ steps.last_release.outputs.tag }}
 

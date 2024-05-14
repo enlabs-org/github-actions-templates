@@ -9,9 +9,6 @@ on:
       docker_registry:
         required: true
         type: string
-      docker_build_options:
-        required: false
-        type: string
       kubernetes_cluster:
         required: true
         type: string
@@ -53,6 +50,8 @@ on:
         required: true
       deployment_token:
         required: false
+      docker_build_options:
+        required: false
 
 env:
   PROJECT: ${{ inputs.project }}
@@ -76,7 +75,7 @@ jobs:
         run: doctl registry login -t ${{ secrets.digitalocean_token }} --expiry-seconds 1200
 
       - name: Build
-        run: DOCKER_BUILDKIT=1 docker build ${{ inputs.context }} --file ${{ inputs.dockerfile_path }} --tag $DOCKER_REGISTRY/$IMAGE_WITH_TAG ${{ inputs.docker_build_options }}
+        run: DOCKER_BUILDKIT=1 docker build ${{ inputs.context }} --file ${{ inputs.dockerfile_path }} --tag $DOCKER_REGISTRY/$IMAGE_WITH_TAG ${{ secrets.docker_build_options }}
 
       - name: Push
         run: docker push $DOCKER_REGISTRY/$IMAGE_WITH_TAG
