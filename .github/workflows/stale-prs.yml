@@ -1,0 +1,43 @@
+name: Github - Find & Mark STALE PRs
+
+on:
+  workflow_call:
+    inputs:
+      lastUpdated:
+        required: true
+        type: string
+      label:
+        required: false
+        type: string
+        default: STALE
+    secrets:
+      token:
+        required: true
+
+jobs:
+  stale-pull-requests:
+    name: Find & Mark
+    runs-on: ubuntu-latest
+    steps:
+      - name: Find stale pull requests
+        env:
+          GITHUB_TOKEN: ${{ secrets.token }}
+          LAST_UPDATED: ${{ inputs.lastUpdated }}
+          LABEL: ${{ inputs.label }}
+        run: |
+          DAYS_AGO=$(date -d '$LAST_UPDATED' --utc +%Y-%m-%dT%H:%M:%SZ)
+
+          # Get pull requests where nothing happened for more than selected days
+          STALE_PRS=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/pulls?state=open&sort=updated&direction=asc" \
+            | jq --arg DATE "$DAYS_AGO" '.[] | select(.updated_at < $DATE) | {number: .number}')
+
+          # Add label to PRs
+          echo "$STALE_PRS" | jq -c | while read -r pr; do
+            PR_NUMBER=$(echo "$pr" | jq -r '.number')
+            echo "Adding label to PR #$PR_NUMBER"
+            curl -s -X POST -H "Authorization: token $GITHUB_TOKEN" \
+                          -H "Accept: application/vnd.github.v3+json" \
+                          "https://api.github.com/repos/${{ github.repository }}/issues/$PR_NUMBER/labels" \
+                          -d '{"labels":["$LABEL"]}'
+          done
