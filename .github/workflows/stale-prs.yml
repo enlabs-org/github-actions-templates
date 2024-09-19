@@ -25,7 +25,7 @@ jobs:
           LAST_UPDATED: ${{ inputs.lastUpdated }}
           LABEL: ${{ inputs.label }}
         run: |
-          DAYS_AGO=$(date -d "$LAST_UPDATED" --utc +%Y-%m-%dT%H:%M:%SZ)
+          DAYS_AGO=$(date -d "$LAST_UPDATED days ago" --utc +%Y-%m-%dT%H:%M:%SZ)
 
           # Get pull requests where nothing happened for more than selected days
           STALE_PRS=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
