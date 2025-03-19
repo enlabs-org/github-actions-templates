@@ -58,7 +58,7 @@ jobs:
     runs-on: ${{ inputs.runs_on }}
     name: Staging App – Build
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Install doctl
         uses: digitalocean/action-doctl@v2
@@ -80,16 +80,16 @@ jobs:
     needs: build
     timeout-minutes: ${{ inputs.timeouts }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Set up kubectl
-        uses: matootie/dokube@v1.4.0
+        uses: matootie/dokube@v1.4.1
         with:
           personalAccessToken: ${{ secrets.digitalocean_token }}
           clusterName: ${{ inputs.kubernetes_cluster }}
           namespace: ${{ env.PROJECT }}
 
-      - uses: azure/setup-helm@v3
+      - uses: azure/setup-helm@v4
         env:
           GITHUB_TOKEN: ${{ secrets.token }}
 
