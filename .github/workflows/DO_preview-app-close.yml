@@ -39,13 +39,13 @@ jobs:
           token: ${{ secrets.digitalocean_token }}
 
       - name: Set up kubectl
-        uses: matootie/dokube@v1.4.0
+        uses: matootie/dokube@v1.4.1
         with:
           personalAccessToken: ${{ secrets.digitalocean_token }}
           clusterName: ${{ inputs.kubernetes_cluster }}
           namespace: ${{ env.PROJECT }}
 
-      - uses: azure/setup-helm@v3
+      - uses: azure/setup-helm@v4
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -58,7 +58,7 @@ jobs:
         run: |
           doctl registry repository delete-tag -f ${{ env.PROJECT }} ${{ github.event.number }}
 
-      - uses: strumwolf/delete-deployment-environment@v2
+      - uses: strumwolf/delete-deployment-environment@v3
         continue-on-error: true
         name: Delete GitHub deployment
         with:
