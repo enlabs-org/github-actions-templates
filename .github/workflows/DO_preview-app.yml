@@ -52,11 +52,14 @@ on:
         required: false
       docker_build_options:
         required: false
+      php_composer_token:
+        required: false
 
 env:
   PROJECT: ${{ inputs.project }}
   IMAGE_WITH_TAG: ${{ inputs.project }}:${{ github.event.number }}
   DOCKER_REGISTRY: ${{ inputs.docker_registry }}
+  PHP_COMPOSER_TOKEN: ${{ secrets.php_composer_token || '' }}
 
 jobs:
   build:

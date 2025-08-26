@@ -45,10 +45,13 @@ on:
         required: true
       docker_build_options:
         required: false
+      php_composer_token:
+        required: false
 
 env:
   PROJECT: ${{ inputs.project }}
   DOCKER_REGISTRY: ${{ inputs.docker_registry }}
+  PHP_COMPOSER_TOKEN: ${{ secrets.php_composer_token || '' }}
 
 jobs:
   build:
