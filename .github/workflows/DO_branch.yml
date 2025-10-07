@@ -1,0 +1,120 @@
+name: Kubernetes Preview App - Branch
+
+on:
+  workflow_call:
+    inputs:
+      project:
+        required: true
+        type: string
+      branch:
+        required: true
+        type: string
+      docker_registry:
+        required: true
+        type: string
+      kubernetes_cluster:
+        required: true
+        type: string
+      base_domain:
+        required: true
+        type: string
+      context:
+        required: false
+        type: string
+        default: .
+      runs_on:
+        required: false
+        type: string
+        default: ubuntu-latest
+      timeouts:
+        required: false
+        default: 10
+        type: number
+      dockerfile_path:
+        required: false
+        default: Dockerfile
+        type: string
+      helm_values_path:
+        required: false
+        default: values-stage.yml
+        type: string
+      helm_chart_version:
+        required: false
+        default: 1.0.0
+        type: string
+      deployment:
+        required: false
+        type: string
+        default: "false"
+    secrets:
+      token:
+        required: true
+      digitalocean_token:
+        required: true
+      deployment_token:
+        required: false
+      docker_build_options:
+        required: false
+      php_composer_token:
+        required: false
+
+env:
+  PROJECT: ${{ inputs.project }}
+  IMAGE_WITH_TAG: ${{ inputs.project }}:${{ inputs.branch }}
+  DOCKER_REGISTRY: ${{ inputs.docker_registry }}
+  PHP_COMPOSER_TOKEN: ${{ secrets.php_composer_token || '' }}
+
+jobs:
+  build:
+    timeout-minutes: ${{ inputs.timeouts }}
+    runs-on: ${{ inputs.runs_on }}
+    name: Preview App – Build
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install doctl
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.digitalocean_token }}
+
+      - name: Login to Docker Registry
+        run: doctl registry login -t ${{ secrets.digitalocean_token }} --expiry-seconds 1200
+
+      - name: Build
+        run: DOCKER_BUILDKIT=1 docker build ${{ inputs.context }} --file ${{ inputs.dockerfile_path }} --tag $DOCKER_REGISTRY/$IMAGE_WITH_TAG ${{ secrets.docker_build_options }}
+
+      - name: Push
+        run: docker push $DOCKER_REGISTRY/$IMAGE_WITH_TAG
+
+  deploy:
+    runs-on: ${{ inputs.runs_on }}
+    name: Preview App – Deploy
+    needs: build
+    timeout-minutes: ${{ inputs.timeouts }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up kubectl
+        uses: matootie/dokube@v1.4.1
+        with:
+          personalAccessToken: ${{ secrets.digitalocean_token }}
+          clusterName: ${{ inputs.kubernetes_cluster }}
+          namespace: ${{ env.PROJECT }}
+
+      - uses: azure/setup-helm@v4
+        env:
+          GITHUB_TOKEN: ${{ secrets.token }}
+
+      - name: Install Helm Charts
+        run: helm repo add enlabs https://enlabs-org.github.io/charts/
+
+      - name: Update Helm release
+        run: |
+          helm upgrade ${{ env.PROJECT }}-${{ inputs.branch }} -i \
+          enlabs/preview-app \
+          -f ${{ inputs.helm_values_path }} \
+          --set image=${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_WITH_TAG }} \
+          --set host=${{ env.PROJECT }}-${{ inputs.branch }}.${{ inputs.base_domain }} \
+          -n ${{ env.PROJECT }} \
+          --create-namespace \
+          --version ${{ inputs.helm_chart_version }}
