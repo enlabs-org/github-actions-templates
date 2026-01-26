@@ -111,7 +111,7 @@ jobs:
       - name: Update Helm release
         run: |
           helm upgrade ${{ env.PROJECT }}-${{ inputs.branch }} -i \
-          enlabs/preview-app \
+          enlabs/app \
           -f ${{ inputs.helm_values_path }} \
           --set image=${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_WITH_TAG }} \
           --set host=${{ env.PROJECT }}-${{ inputs.branch }}.${{ inputs.base_domain }} \
