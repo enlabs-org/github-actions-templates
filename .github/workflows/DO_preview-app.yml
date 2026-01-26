@@ -110,8 +110,8 @@ jobs:
           helm upgrade ${{ env.PROJECT }}-${{ github.event.number }} -i \
           enlabs/app \
           -f ${{ inputs.helm_values_path }} \
-          --set image=${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_WITH_TAG }} \
-          --set host=${{ env.PROJECT }}-${{ github.event.number }}.${{ inputs.base_domain }} \
+          --set global.image=${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_WITH_TAG }} \
+          --set global.host=${{ env.PROJECT }}-${{ github.event.number }}.${{ inputs.base_domain }} \
           -n ${{ env.PROJECT }} \
           --create-namespace \
           --version ${{ inputs.helm_chart_version }}
