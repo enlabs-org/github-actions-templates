@@ -1,0 +1,104 @@
+name: Cypress Reusable Test
+
+on:
+  workflow_call:
+    inputs:
+      base-url:
+        description: 'Base URL to test against - what are we testing?'
+        required: true
+        type: string
+      
+      browser:
+        description: 'Browser to run tests in (FireFox, Chrome, ...)'
+        required: false
+        type: string
+        default: 'chrome'
+      
+      node-version:
+        description: 'Node.js version to use'
+        required: false
+        type: string
+        default: '20'
+      
+      spec-pattern:
+        description: 'Cypress spec pattern will run everything in the cypress/e2e/ directory regardless of directory structure under the /e2e/ - .cy.js/jsx/ts/tsx'
+        required: false
+        type: string
+        default: 'cypress/e2e/**/*.cy.{js,jsx,ts,tsx}'
+      
+      working-directory:
+        description: 'Working directory where cypress.config.js is located - default is root of the repo'
+        required: false
+        type: string
+        default: '.'
+    
+    outputs:
+      test-status:
+        description: 'Status of the test run (success or failure)'
+        value: ${{ jobs.cypress-tests.outputs.status }}
+
+jobs:
+  cypress-tests:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    
+    outputs:
+      status: ${{ steps.test-execution.outcome }}
+    
+    steps:
+      # Step 1: Checkout the caller's repository - checks out the repo, which called THIS workflow
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      # Step 2: Setup Node.js
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node-version }}
+      
+      # Step 3: Install dependencies
+      - name: Install dependencies
+        working-directory: ${{ inputs.working-directory }}
+        run: npm install
+      
+      # Step 4: Run Cypress tests
+      - name: Run Cypress tests
+        id: test-execution
+        uses: cypress-io/github-action@v6
+        with:
+          working-directory: ${{ inputs.working-directory }}
+          browser: ${{ inputs.browser }}
+          spec: ${{ inputs.spec-pattern }}
+        env:
+          CYPRESS_BASE_URL: ${{ inputs.base-url }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      # Step 5: Upload screenshots on failure
+      - name: Upload screenshots
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cypress-screenshots-${{ inputs.browser }}
+          path: ${{ inputs.working-directory }}/cypress/screenshots
+          if-no-files-found: ignore
+          retention-days: 7
+      
+      # Step 6: Upload videos (always, for debugging)
+      - name: Upload videos
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cypress-videos-${{ inputs.browser }}
+          path: ${{ inputs.working-directory }}/cypress/videos
+          if-no-files-found: ignore
+          retention-days: 7
+      
+      # Step 7: Upload test results
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cypress-results-${{ inputs.browser }}
+          path: ${{ inputs.working-directory }}/cypress/results
+          if-no-files-found: ignore
+          retention-days: 30
