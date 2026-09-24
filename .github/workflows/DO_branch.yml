@@ -70,7 +70,7 @@ jobs:
     runs-on: ${{ inputs.runs_on }}
     name: Preview App – Build
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install doctl
         uses: digitalocean/action-doctl@v2
@@ -92,7 +92,7 @@ jobs:
     needs: build
     timeout-minutes: ${{ inputs.timeouts }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Set up kubectl
         uses: matootie/dokube@v1.4.1
@@ -101,7 +101,7 @@ jobs:
           clusterName: ${{ inputs.kubernetes_cluster }}
           namespace: ${{ env.PROJECT }}
 
-      - uses: azure/setup-helm@v4
+      - uses: azure/setup-helm@v5
         env:
           GITHUB_TOKEN: ${{ secrets.token }}
 
