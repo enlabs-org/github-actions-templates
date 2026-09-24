@@ -59,7 +59,7 @@ jobs:
     runs-on: ${{ inputs.runs_on }}
     name: Release App – Build
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Get latest release
         id: last_release
@@ -88,7 +88,7 @@ jobs:
     runs-on: ${{ inputs.runs_on }}
     name: Release App – Commit Release
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           repository: ${{ inputs.infra_repository }}
           ref: "${{ inputs.infra_branch }}"
