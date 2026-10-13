@@ -1,0 +1,125 @@
+name: Dokku deploy (build in CI, image to GHCR)
+
+# Build image na runneru, push do GHCR a na Dokku serveru `git:from-image`.
+# Server nic nebuilduje ani nestahuje git — jen pullne hotový image.
+#
+# Předpoklady:
+#   - appka založená na serveru (provision v enlabs-org/apps, apps/<app>/app.conf)
+#   - na serveru `docker login ghcr.io` pod uživatelem dokku (read:packages),
+#     pokud je image privátní
+#   - secret DOKKU_SSH_PRIVATE_KEY (klíč přidaný přes `dokku ssh-keys:add`)
+#
+# Použití v repu appky:
+#   jobs:
+#     deploy:
+#       uses: enlabs-org/github-actions-templates/.github/workflows/dokku_deploy.yml@main
+#       with:
+#         app: spiz
+#         host: apps.example.cz
+#         target: runtime        # volitelně, multi-stage Dockerfile
+#       secrets:
+#         DOKKU_SSH_PRIVATE_KEY: ${{ secrets.DOKKU_SSH_PRIVATE_KEY }}
+#       permissions:
+#         contents: read
+#         packages: write
+
+on:
+  workflow_call:
+    inputs:
+      app:
+        description: Název appky na Dokku
+        required: true
+        type: string
+      host:
+        description: Hostname Dokku serveru
+        required: true
+        type: string
+      image:
+        description: Název image bez tagu (default ghcr.io/<owner>/<repo>)
+        required: false
+        type: string
+        default: ""
+      context:
+        required: false
+        type: string
+        default: .
+      dockerfile:
+        required: false
+        type: string
+        default: ""
+      target:
+        description: Cílová stage v multi-stage Dockerfile
+        required: false
+        type: string
+        default: ""
+      build_args:
+        required: false
+        type: string
+        default: ""
+      runs_on:
+        required: false
+        type: string
+        default: ubuntu-latest
+    secrets:
+      DOKKU_SSH_PRIVATE_KEY:
+        required: true
+
+concurrency:
+  group: dokku-deploy-${{ inputs.app }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ${{ inputs.runs_on }}
+    permissions:
+      contents: read
+      packages: write
+    env:
+      IMAGE: ${{ inputs.image != '' && inputs.image || format('ghcr.io/{0}', github.repository) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE }}
+          tags: |
+            type=raw,value=latest
+            type=sha,format=long,prefix=
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: ${{ inputs.context }}
+          file: ${{ inputs.dockerfile != '' && inputs.dockerfile || format('{0}/Dockerfile', inputs.context) }}
+          target: ${{ inputs.target }}
+          build-args: ${{ inputs.build_args }}
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - uses: webfactory/ssh-agent@v0.9.1
+        with:
+          ssh-private-key: ${{ secrets.DOKKU_SSH_PRIVATE_KEY }}
+
+      - name: Deploy image on Dokku
+        run: |
+          ssh -o StrictHostKeyChecking=accept-new "dokku@${{ inputs.host }}" -- \
+            git:from-image "${{ inputs.app }}" "${{ env.IMAGE }}:${{ github.sha }}"
+
+      # Po prvním úspěšném deployi zapne HTTPS; dál už je to no-op.
+      - name: Enable HTTPS
+        # letsencrypt:active vrací exit 0 i pro "false" — nutno testovat výstup
+        run: |
+          [ "$(ssh "dokku@${{ inputs.host }}" -- letsencrypt:active "${{ inputs.app }}")" = "true" ] \
+            || ssh "dokku@${{ inputs.host }}" -- letsencrypt:enable "${{ inputs.app }}"
